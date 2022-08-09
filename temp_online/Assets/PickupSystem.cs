@@ -2,18 +2,16 @@ using Photon.Pun;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PickupSystem : MonoBehaviour
 {
     public GameObject Cam;
-
     public GameObject PickUpSlot;
-
     Pickupable pickupable;
-
     public float PickDistance = 10;
-
     PhotonView view;
+    public GameObject Crosshair;
 
     // Start is called before the first frame update
     void Start()
@@ -28,42 +26,31 @@ public class PickupSystem : MonoBehaviour
         RaycastHit hit;
 
         Debug.DrawRay(Cam.transform.position, Cam.transform.TransformDirection(Vector3.forward) * PickDistance, Color.red);
+        if(pickupable) Crosshair.GetComponent<Image>().color = Color.green;
+        else Crosshair.GetComponent<Image>().color = Color.white;
 
-        if(Physics.Raycast(Cam.transform.position, Cam.transform.TransformDirection(Vector3.forward), out hit, PickDistance))
+        if (Physics.Raycast(Cam.transform.position, Cam.transform.TransformDirection(Vector3.forward), out hit, PickDistance))
         {
             Debug.DrawRay(Cam.transform.position, Cam.transform.TransformDirection(Vector3.forward) * PickDistance, Color.yellow);
-            hit.transform.GetComponent<Pickupable>().RequestOwner();
+            if (hit.transform.TryGetComponent(out Pickupable temp) && !pickupable)
+            {
+                Crosshair.GetComponent<Image>().color = Color.red;
+            }
         }
 
         if (Input.GetKeyDown(KeyCode.Mouse0))
         {
-            if (pickupable) dropItem(pickupable);
-            else if (hit.transform.GetComponent<Pickupable>()) pickItem(hit.transform.GetComponent<Pickupable>());
+            if (pickupable)
+            {
+                pickupable.Drop();
+                pickupable = null;
+            }
+            else if (hit.transform.TryGetComponent(out pickupable))
+            {
+                pickupable.RequestOwner();
+                PickUpSlot.transform.position = hit.point;
+                pickupable.Pick(PickUpSlot.transform);
+            } 
         }
-    }
-
-    void pickItem(Pickupable pick)
-    {
-        pickupable = pick;
-
-        pick.Rb.isKinematic = true;
-        pick.Rb.velocity = Vector3.zero;
-        pick.Rb.angularVelocity = Vector3.zero;
-
-        pick.transform.SetParent(PickUpSlot.transform);
-
-        pick.transform.localPosition = Vector3.zero;
-        pick.transform.localEulerAngles = Vector3.zero;
-
-        pick.Collider.enabled = false;
-    }
-
-    void dropItem(Pickupable pick)
-    {
-        pickupable = null;
-        pick.transform.SetParent(null);
-        pick.Rb.isKinematic = false;
-        pick.Rb.AddForce(pick.transform.forward * 2, ForceMode.VelocityChange);
-        pick.Collider.enabled = true;
     }
 }
